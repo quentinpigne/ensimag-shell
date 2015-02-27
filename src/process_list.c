@@ -18,5 +18,13 @@ struct process_list* add_process(struct process_list* list, pid_t pid, char* cmd
 }
 
 struct process_list* remove_process(struct process_list* list, pid_t pid) {
-	return NULL;
+	struct process_list* prev = NULL;
+	struct process_list* cur = list;
+	while(cur->pid != pid && cur != NULL) {
+		prev = cur;
+		cur = cur->next;
+	}
+	prev->next = cur->next;
+	free(cur);
+	return list;
 }

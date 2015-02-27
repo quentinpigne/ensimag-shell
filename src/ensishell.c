@@ -20,6 +20,16 @@
 #error "Variante non défini !!"
 #endif
 
+struct process_list* check_finish(struct process_list* plist) {
+	int status;
+	pid_t finished_pid = waitpid(-1, &status, WNOHANG);
+	if(finished_pid > 0) {
+		printf("PID %d finished\n", finished_pid);
+		//plist = remove_process(plist, finished_pid);
+	}
+	return plist;
+}
+
 int main() {
 	printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
 
@@ -48,7 +58,17 @@ int main() {
 		if (l->out) printf("out: %s\n", l->out);
 		if (l->bg) printf("background (&)\n");
 
+		if (l->seq[0] == NULL) {
+			//Affichage des processus terminés et retrait de la liste
+			plist = check_finish(plist);
+
+			continue;
+		}
+
 		if (strcmp(l->seq[0][0], "jobs") == 0) {
+			//Affichage des processus terminés et retrait de la liste
+			plist = check_finish(plist);
+
 			printf("[DEBUG] print_jobs entering - plist value : %p\n", plist);
 			printf("Liste des processus en tache de fond :\n");
 			struct process_list* courant = plist;
@@ -63,6 +83,9 @@ int main() {
 		}
 
 		for (i = 0; l->seq[i] != 0; i++) {
+			//Affichage des processus terminés et retrait de la liste
+			plist = check_finish(plist);
+
 			char **cmd = l->seq[i];
 			// Duplication du shell
 			pid_t pid = fork();
