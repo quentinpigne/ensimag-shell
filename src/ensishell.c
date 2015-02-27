@@ -32,6 +32,10 @@ int main() {
 
 		l = readcmd(prompt);
 
+		/*
+			Gestion des erreurs et des cas particuliers
+		*/
+
 		/* If input stream closed, normal termination */
 		if (!l) {
 			printf("exit\n");
@@ -47,18 +51,20 @@ int main() {
 		if (l->in) printf("in: %s\n", l->in);
 		if (l->out) printf("out: %s\n", l->out);
 
+		/* Gestion de l'absence de commande */
 		if (l->seq[0] == NULL) {
-			//Affichage des processus terminés et retrait de la liste
-			plist = check_finish(plist);
-
+			/* Affichage des processus terminés et retrait de la liste */
+			check_finish(&plist);
 			continue;
 		}
 
+		/*
+		*/
+
 		if (strcmp(l->seq[0][0], "jobs") == 0) {
-			//Affichage des processus terminés et retrait de la liste
-			plist = check_finish(plist);
-			printf("[DEBUG] print_jobs entering - plist value : %p\n", plist);
-			int i  = 1;
+			/* Affichage des processus terminés et retrait de la liste */
+			check_finish(&plist);
+			int i = 1;
 			struct process_list* courant = plist;
 			while(courant != NULL) {
 				printf("[%d] ", i);
@@ -67,30 +73,26 @@ int main() {
 				courant = courant->next;
 				i++;
 			}
-			printf("[DEBUG] print_jobs exiting\n");
 			continue;
 		}
 
 		for (i = 0; l->seq[i] != 0; i++) {
-			//Affichage des processus terminés et retrait de la liste
-			plist = check_finish(plist);
+			/* Affichage des processus terminés et retrait de la liste */
+			check_finish(&plist);
 
 			char **cmd = l->seq[i];
-			// Duplication du shell
+			/*  Duplication du shell */
 			pid_t pid = fork();
-			// Dans le processus fils, pid = 0. On exécute donc la commande
+			/* Dans le processus fils, pid = 0. On exécute donc la commande */
 			if(pid == 0) execvp(cmd[0], cmd);
 			else {
 				if(!l->bg) {
-					// Le père attends la terminaison de son fils
+					/* Le père attends la terminaison de son fils */
 					int status;
 					wait(&status);
 				} else {
-					printf("[DEBUG] Before adding process : plist value : %p\n", plist);
-					int pos;
-					plist = add_process(plist, &pos, pid, cmd[0]);
-					printf("[%d] %d", pos, pid);
-					printf("[DEBUG] After adding process : plist value : %p\n", plist);
+					int pos = add_process(&plist, pid, cmd[0]);
+					printf("[%d] %d\n", pos, pid);
 				}
 			}
 		}
