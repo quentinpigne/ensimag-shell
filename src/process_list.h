@@ -6,9 +6,12 @@
 #include <string.h>
 #include <unistd.h>
 
+/* La liste des processus est doublement chainée */
 struct process_list {
+	int no;
 	pid_t pid;
 	char* cmd;
+	struct process_list* prev;
 	struct process_list* next;
 };
 

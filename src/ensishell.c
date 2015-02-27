@@ -64,14 +64,12 @@ int main() {
 		if (strcmp(l->seq[0][0], "jobs") == 0) {
 			/* Affichage des processus terminés et retrait de la liste */
 			check_finish(&plist);
-			int i = 1;
 			struct process_list* courant = plist;
 			while(courant != NULL) {
-				printf("[%d] ", i);
+				printf("[%d]+ ", courant->no);
 				printf(" Running");
-				printf("\t%s\n", courant->cmd);
+				printf("\t\t%s\n", courant->cmd);
 				courant = courant->next;
-				i++;
 			}
 			continue;
 		}
