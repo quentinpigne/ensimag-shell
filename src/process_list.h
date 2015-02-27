@@ -12,7 +12,9 @@ struct process_list {
 	struct process_list* next;
 };
 
-struct process_list* add_process(struct process_list *list, pid_t pid, char* cmd);
-struct process_list* remove_process(struct process_list *list, pid_t pid);
+struct process_list* add_process(struct process_list *list, int* pos, pid_t pid, char* cmd);
+struct process_list* remove_process(struct process_list *list, int* pos, pid_t pid);
+
+struct process_list* check_finish(struct process_list* plist);
 
 #endif
