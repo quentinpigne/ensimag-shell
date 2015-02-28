@@ -27,7 +27,6 @@ int main() {
 
 	while (1) {
 		struct cmdline *l;
-		int i;
 		char *prompt = "ensishell>";
 
 		l = readcmd(prompt);
@@ -38,31 +37,30 @@ int main() {
 
 		/* If input stream closed, normal termination */
 		if (!l) {
+			check_finish(&plist);
 			printf("exit\n");
 			exit(0);
 		}
 
+		/* Syntax error, read another command */
 		if (l->err) {
-			/* Syntax error, read another command */
+			check_finish(&plist);
 			printf("error: %s\n", l->err);
 			continue;
 		}
 
-		if (l->in) printf("in: %s\n", l->in);
-		if (l->out) printf("out: %s\n", l->out);
-
 		/* Gestion de l'absence de commande */
 		if (l->seq[0] == NULL) {
-			/* Affichage des processus terminés et retrait de la liste */
 			check_finish(&plist);
 			continue;
 		}
 
 		/*
+			Gestion des commandes du Shell
 		*/
 
+		/* Affichage des processus en arriere-plan */
 		if (strcmp(l->seq[0][0], "jobs") == 0) {
-			/* Affichage des processus terminés et retrait de la liste */
 			check_finish(&plist);
 			struct process_list* courant = plist;
 			while(courant != NULL) {
@@ -74,24 +72,52 @@ int main() {
 			continue;
 		}
 
-		for (i = 0; l->seq[i] != 0; i++) {
-			/* Affichage des processus terminés et retrait de la liste */
+		/* Sortie du Shell */
+		if (strcmp(l->seq[0][0], "exit") == 0) {
 			check_finish(&plist);
+			printf("exit\n");
+			exit(0);
+		}
 
-			char **cmd = l->seq[i];
-			/*  Duplication du shell */
-			pid_t pid = fork();
-			/* Dans le processus fils, pid = 0. On exécute donc la commande */
-			if(pid == 0) execvp(cmd[0], cmd);
-			else {
-				if(!l->bg) {
-					/* Le père attends la terminaison de son fils */
-					int status;
-					wait(&status);
-				} else {
-					int pos = add_process(&plist, pid, cmd[0]);
-					printf("[%d] %d\n", pos, pid);
-				}
+		/*
+			Gestion des redirections in et out
+		*/
+		if (l->in || l->out) {
+			check_finish(&plist);
+			for (int i = 0; l->seq[i] != 0; i++) {
+				/* Gestion des redirections */
+			}
+			continue;
+		}
+
+		/*
+			Gestion du pipe
+		*/
+		if(l->seq[1] != NULL) {
+			check_finish(&plist);
+			for (int i = 0; l->seq[i] != 0; i++) {
+				/* Gestion du pipe */
+			}
+			continue;
+		}
+
+		/*
+			Gestion des commandes simples
+		*/
+		check_finish(&plist);
+		char **cmd = l->seq[0];
+		/*  Duplication du shell */
+		pid_t pid = fork();
+		/* Dans le processus fils, pid = 0. On exécute donc la commande */
+		if(pid == 0) execvp(cmd[0], cmd);
+		else {
+			if(!l->bg) {
+				/* Le père attends la terminaison de son fils */
+				int status;
+				wait(&status);
+			} else {
+				int pos = add_process(&plist, pid, cmd[0]);
+				printf("[%d] %d\n", pos, pid);
 			}
 		}
 	}
