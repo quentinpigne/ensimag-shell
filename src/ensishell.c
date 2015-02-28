@@ -95,9 +95,17 @@ int main() {
 		*/
 		if(l->seq[1] != NULL) {
 			check_finish(&plist);
-			for (int i = 0; l->seq[i] != 0; i++) {
-				/* Gestion du pipe */
+			int pid;
+			int tuyau[2];
+			pipe(tuyau);
+			if((pid = fork()) == 0) {
+				dup2(tuyau[0], 0);
+				close(tuyau[1]); close(tuyau[0]);
+				execvp(l->seq[1][0],l->seq[1]);
 			}
+			dup2(tuyau[1], 1);
+			close(tuyau[0]); close(tuyau[1]);
+			execvp(l->seq[0][0],l->seq[0]);
 			continue;
 		}
 
