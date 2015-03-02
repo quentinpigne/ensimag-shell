@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "variante.h"
 #include "readcmd.h"
@@ -84,28 +85,66 @@ int main() {
 		*/
 		if (l->in || l->out) {
 			check_finish(&plist);
-			for (int i = 0; l->seq[i] != 0; i++) {
-				/* Gestion des redirections */
+			/* Duplication du shell */
+			pid_t pid = fork();
+			/* Dans le processus fils, pid = 0. On exécute donc la commande et on redirige sa sortie standard dans un fichier */
+			if(pid == 0) {
+				if(l->in) {
+					int in = open(l->in, O_RDONLY);
+					dup2(in, 0);
+					close(in);
+				}
+				if(l->out) {
+					int out = open(l->out, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+					dup2(out, 1);
+					close(out);
+				}
+				execvp(l->seq[0][0], l->seq[0]);
+			}
+			else {
+				if(!l->bg) {
+					/* Le père attends la terminaison de son fils */
+					int status;
+					wait(&status);
+				} else {
+					int pos = add_process(&plist, pid, l->seq[0][0]);
+					printf("[%d] %d\n", pos, pid);
+				}
 			}
 			continue;
 		}
 
 		/*
-			Gestion du pipe
+			Gestion du pipe simple
 		*/
 		if(l->seq[1] != NULL) {
 			check_finish(&plist);
-			int pid;
-			int tuyau[2];
-			pipe(tuyau);
-			if((pid = fork()) == 0) {
-				dup2(tuyau[0], 0);
-				close(tuyau[1]); close(tuyau[0]);
-				execvp(l->seq[1][0],l->seq[1]);
+			/* Duplication du shell */
+			pid_t pid1 = fork();
+			/* Dans le processus fils, pid = 0. On exécute la 1ere commande dont la sortie standard est reliée à l'entrée de la 2e */
+			if(pid1 == 0) {
+				pid_t pid2;
+				int tuyau[2];
+				pipe(tuyau);
+				if((pid2 = fork()) == 0) {
+					dup2(tuyau[0], 0);
+					close(tuyau[1]); close(tuyau[0]);
+					execvp(l->seq[1][0], l->seq[1]);
+				}
+				dup2(tuyau[1], 1);
+				close(tuyau[0]); close(tuyau[1]);
+				execvp(l->seq[0][0], l->seq[0]);
 			}
-			dup2(tuyau[1], 1);
-			close(tuyau[0]); close(tuyau[1]);
-			execvp(l->seq[0][0],l->seq[0]);
+			else {
+				if(!l->bg) {
+					/* Le père attends la terminaison de son fils */
+					int status;
+					wait(&status);
+				} else {
+					int pos = add_process(&plist, pid1, l->seq[0][0]);
+					printf("[%d] %d\n", pos, pid1);
+				}
+			}
 			continue;
 		}
 
@@ -114,9 +153,9 @@ int main() {
 		*/
 		check_finish(&plist);
 		char **cmd = l->seq[0];
-		/*  Duplication du shell */
+		/* Duplication du shell */
 		pid_t pid = fork();
-		/* Dans le processus fils, pid = 0. On exécute donc la commande */
+		/* Dans le processus fils, pid = 0. On exécute la commande */
 		if(pid == 0) execvp(cmd[0], cmd);
 		else {
 			if(!l->bg) {
