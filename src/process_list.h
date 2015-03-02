@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 
+extern struct process_list* plist;
+
 /* La liste des processus est doublement chainée */
 struct process_list {
 	int no;
@@ -15,9 +17,7 @@ struct process_list {
 	struct process_list* next;
 };
 
-int add_process(struct process_list** plist, pid_t pid, char* cmd);
-int remove_process(struct process_list** plist, pid_t pid);
-
-void check_finish(struct process_list** plist);
+int add_process(pid_t pid, char* cmd);
+void remove_process(int sig);
 
 #endif

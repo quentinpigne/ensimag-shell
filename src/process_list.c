@@ -1,6 +1,6 @@
 #include "process_list.h"
 
-int add_process(struct process_list** plist, pid_t pid, char* cmd) {
+int add_process(pid_t pid, char* cmd) {
 	/* Création du nouveau processus à ajouter à la liste */
 	struct process_list* new_p = malloc(sizeof(struct process_list));
 	new_p->no = 1;
@@ -11,11 +11,11 @@ int add_process(struct process_list** plist, pid_t pid, char* cmd) {
 	new_p->next = NULL;
 	
 	/* Ajout de ce processus en fin de liste */
-	if(*plist == NULL) *plist = new_p;
+	if(plist == NULL) plist = new_p;
 	else {
 		(new_p->no)++;
 		/* On se place sur le dernier processus de la liste */
-		struct process_list* cur = *plist;
+		struct process_list* cur = plist;
 		while(cur->next != NULL) {
 			cur = cur->next;
 			(new_p->no)++;
@@ -28,36 +28,30 @@ int add_process(struct process_list** plist, pid_t pid, char* cmd) {
 	return new_p->no;
 }
 
-int remove_process(struct process_list** plist, pid_t pid) {
+void remove_process(int sig) {
+	/* Récupération du PID d'un fils ayant terminé */
+	int status;
+	pid_t pid = waitpid(-1, &status, WNOHANG);
+	
 	/* On recherche le processus à supprimer */
-	struct process_list* cur = *plist;
-	while(cur->pid != pid && cur != NULL) {
+	struct process_list* cur = plist;
+	while(cur != NULL && cur->pid != pid) {
 		cur = cur->next;
 	}
 
-	/* On le supprime de la liste des processus */
-	if(cur->prev == NULL) {
-		*plist = cur->next;
-		if(cur->next != NULL) cur->next->prev = NULL;
-	} else {
-		cur->prev->next = cur->next;
-		if(cur->next != NULL) cur->next->prev = cur->prev;
-	}
-	int no = cur->no;
-	free(cur);
+	/* Si le processus trouvé correspond au processus terminé on le supprime de la liste */
+	if(cur != NULL && cur->pid == pid) {
+		if(cur->prev == NULL) {
+			plist = cur->next;
+			if(cur->next != NULL) cur->next->prev = NULL;
+		} else {
+			cur->prev->next = cur->next;
+			if(cur->next != NULL) cur->next->prev = cur->prev;
+		}
+		int no = cur->no;
+		free(cur);
 
-	return no;
-}
-
-void check_finish(struct process_list** plist) {
-	/* Récupération du PID d'un fils ayant terminé */
-	int status;
-	pid_t finished_pid = waitpid(-1, &status, WNOHANG);
-
-	/* On affiche tous les processus ayant terminés */
-	while(finished_pid > 0) {
-		int no = remove_process(plist, finished_pid);
-		printf("[%d]+  %s\t\t%d\n", no, (status)?"Error":"Done", finished_pid);
-		finished_pid = waitpid(-1, &status, WNOHANG);
+		/* Affichage du processus qui vient de se terminer */
+		printf("\n[%d]+  %s\t\t%d\n", no, (status)?"Error":"Done", pid);
 	}
 }

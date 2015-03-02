@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "variante.h"
 #include "readcmd.h"
@@ -21,10 +22,10 @@
 #error "Variante non défini !!"
 #endif
 
+struct process_list* plist = NULL;
+
 int main() {
 	printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
-
-	struct process_list* plist = NULL;
 
 	while (1) {
 		struct cmdline *l;
@@ -38,21 +39,18 @@ int main() {
 
 		/* If input stream closed, normal termination */
 		if (!l) {
-			check_finish(&plist);
 			printf("exit\n");
 			exit(0);
 		}
 
 		/* Syntax error, read another command */
 		if (l->err) {
-			check_finish(&plist);
 			printf("error: %s\n", l->err);
 			continue;
 		}
 
 		/* Gestion de l'absence de commande */
 		if (l->seq[0] == NULL) {
-			check_finish(&plist);
 			continue;
 		}
 
@@ -62,7 +60,6 @@ int main() {
 
 		/* Affichage des processus en arriere-plan */
 		if (strcmp(l->seq[0][0], "jobs") == 0) {
-			check_finish(&plist);
 			struct process_list* courant = plist;
 			while(courant != NULL) {
 				printf("[%d]+ ", courant->no);
@@ -75,7 +72,6 @@ int main() {
 
 		/* Sortie du Shell */
 		if (strcmp(l->seq[0][0], "exit") == 0) {
-			check_finish(&plist);
 			printf("exit\n");
 			exit(0);
 		}
@@ -84,7 +80,6 @@ int main() {
 			Gestion de l'exécution des commandes générales
 		*/
 
-		check_finish(&plist);
 		char **cmd = l->seq[0];
 		/* Duplication du shell */
 		pid_t pid = fork();
@@ -120,11 +115,12 @@ int main() {
 			if(!l->bg) {
 				/* Le père attends la terminaison de son fils */
 				int status;
-				wait(&status);
+				waitpid(pid, &status, 0);
 			} else {
 				/* Si le processus est lancé en arriere-plan, il est ajouté à la liste */
-				int pos = add_process(&plist, pid, cmd[0]);
+				int pos = add_process(pid, cmd[0]);
 				printf("[%d] %d\n", pos, pid);
+				signal(SIGCHLD, remove_process);
 			}
 		}
 	}
